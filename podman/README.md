@@ -20,6 +20,7 @@ Place these files in `~/.config/containers/systemd/` for user-level services, or
 ├── recyclarr.container
 ├── recyclarr.timer
 ├── seerr.container
+├── signoz.container
 ├── snowflake-proxy.container
 ├── sonarr.container
 └── uptime-kuma.container
@@ -70,3 +71,4 @@ journalctl --user -u <name>.service -f
   podman network create torrent-network
   ```
 - `arr-stalled-handler.container` requires Radarr and Sonarr API keys — set these via environment or a secrets file; do not commit real keys.
+- `signoz.container` runs [SigNoz Standalone](https://hub.docker.com/r/signoz/signoz-standalone) on port `3301` (UI) and `14317`/`14318` (OTLP). Note: `Privileged=` is not supported in Quadlet; the standalone image runs without it.

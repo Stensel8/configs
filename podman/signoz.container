@@ -1,0 +1,11 @@
+[Unit]
+Description=SigNoz Standalone
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=docker.io/signoz/signoz-standalone:latest
+ContainerName=signoz
+PublishPort=3301:8080
+PublishPort=14317:4317
+PublishPort=14318:4318
