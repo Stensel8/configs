@@ -1,0 +1,136 @@
+# =============================================================================
+# Hardened OpenSSH Server Configuration
+# Ed25519-only · No password auth · Post-quantum hardened
+#
+# CVE mitigations:
+#   CVE-2023-51767 — Ed25519 only (no RSA)
+#   CVE-2025-26465 — UseDNS no
+#   CVE-2025-26466 — LoginGraceTime 30, MaxStartups 20:50:100
+#   CVE-2025-32728 — All forwarding explicitly disabled
+#
+# Key philosophy:
+#   Password authentication over SSH is obsolete and insecure.
+#   SSH keys are the only acceptable remote auth method.
+#
+#   Recommendation: store your SSH keys in a password manager with SSH Agent
+#   support (e.g. Bitwarden). This gives you encrypted storage, cross-device
+#   sync, audit logs, and easy revocation — without ever exposing your
+#   private key.
+#
+#   Use passwords only for sudo (local privilege escalation), never for
+#   SSH authentication itself.
+#
+#   Crypto policy:
+#     This config independently applies strong, post-quantum-aware settings:
+#     Ed25519, curve25519, AES-256, SHA-2 — plus ML-KEM (Kyber) key exchange
+#     to mitigate store-now-decrypt-later attacks. No FUTURE policy needed.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Network
+# -----------------------------------------------------------------------------
+Port 22
+AddressFamily any
+
+# -----------------------------------------------------------------------------
+# Host Keys — Ed25519 only
+# -----------------------------------------------------------------------------
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+# -----------------------------------------------------------------------------
+# Authentication
+# -----------------------------------------------------------------------------
+PermitRootLogin no
+StrictModes yes
+PermitEmptyPasswords no
+
+# Public key authentication — the only accepted method
+PubkeyAuthentication yes
+AuthenticationMethods publickey
+AuthorizedKeysFile .ssh/authorized_keys
+
+# PasswordAuthentication is disabled. SSH passwords are not of this era.
+# If you're locked out and need emergency access:
+#   1. Get console access to the machine
+#   2. Temporarily uncomment the line below and restart sshd
+#   3. Fix your keys, then re-disable password auth immediately
+# PasswordAuthentication yes
+PasswordAuthentication no
+
+# Disable all other auth methods
+ChallengeResponseAuthentication no
+KbdInteractiveAuthentication no
+HostbasedAuthentication no
+GSSAPIAuthentication no
+
+# UsePAM: disabled — we don't need PAM for key-only auth
+# WARNING: on some distros this affects account/session modules.
+# If you see login issues, re-enable and investigate pam config.
+UsePAM no
+
+# Restrict to specific users (recommended — add your username)
+# AllowUsers youruser
+
+# -----------------------------------------------------------------------------
+# DoS / Connection Protection
+# -----------------------------------------------------------------------------
+LoginGraceTime 30
+MaxAuthTries 3
+MaxSessions 10
+MaxStartups 20:50:100
+PerSourceMaxStartups 20
+PerSourceNetBlockSize 32:128
+ClientAliveInterval 300
+ClientAliveCountMax 2
+TCPKeepAlive no
+
+# -----------------------------------------------------------------------------
+# Cryptographic Algorithms — Post-quantum hardened
+#
+# Goal: mitigate store-now-decrypt-later (SNDL) attacks by adding a
+# post-quantum key exchange (ML-KEM / FIPS 203) alongside classical
+# curve25519.
+#
+# Ed25519 + ML-KEM + curve25519 + AES-256 + SHA-2 only
+# No RSA, no ECDSA, no SHA-1, no AES-128
+# -----------------------------------------------------------------------------
+KexAlgorithms mlkem768x25519-sha256,curve25519-sha256,curve25519-sha256@libssh.org
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com
+HostKeyAlgorithms ssh-ed25519
+PubkeyAcceptedAlgorithms ssh-ed25519,sk-ssh-ed25519@openssh.com
+
+# No compression — faster on modern connections, avoids CRIME-style attacks
+Compression no
+
+# -----------------------------------------------------------------------------
+# Forwarding — all disabled
+# -----------------------------------------------------------------------------
+AllowAgentForwarding no
+AllowTcpForwarding no
+AllowStreamLocalForwarding no
+GatewayPorts no
+X11Forwarding no
+X11UseLocalhost yes
+PermitTunnel no
+PermitUserEnvironment no
+StreamLocalBindUnlink no
+IgnoreRhosts yes
+
+# -----------------------------------------------------------------------------
+# Privacy & DNS
+# -----------------------------------------------------------------------------
+UseDNS no
+PrintMotd no
+PrintLastLog yes
+
+# -----------------------------------------------------------------------------
+# Logging
+# -----------------------------------------------------------------------------
+SyslogFacility AUTH
+LogLevel VERBOSE
+
+# -----------------------------------------------------------------------------
+# SFTP
+# -----------------------------------------------------------------------------
+Subsystem sftp internal-sftp -f AUTHPRIV -l INFO
